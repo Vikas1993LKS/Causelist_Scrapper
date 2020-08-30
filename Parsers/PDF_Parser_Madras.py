@@ -12,7 +12,6 @@ import pandas as pd
 import os
 import math
 import numpy as np
-from azure.cosmos import CosmosClient, PartitionKey, exceptions
 
 
 regexp = re.compile(r'^([0-9])')
@@ -23,7 +22,12 @@ date_regex_acceptance = re.compile(r'(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY
 date_regex = re.compile(r'(((\d{1,2}(-|\/|\.)\d{1,2}(-|\/|\.)(19|20)?\d{2}))(\.)?)|(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|January|Feburary|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sept|Oct|Nov|Dec|JAN|FEB|MAR|APR|MAY|JUN|AUG|SEPT|OCT|NOV|DEC)(\s+)?(,)?(\d{1,2})?(st|nd|th|rd|TH)?(,)?(\s+)?(\d{4})(\.)?|(\d{1,2})(st|nd|th|rd)?(\s+|-)?(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|January|Feburary|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sept|Oct|Nov|Dec|JAN|FEB|MAR|APR|MAY|JUN|AUG|SEPT|OCT|NOV|DEC)(\s+|-)?(,)?(\s+)?(\d{4})(\.)?')
 page_number_rejection = re.compile(r'^([0-9]{1,2})(\/)([0-9]{1,2})$')
 
-def parsepdf(data, download_dir):
+def parsepdf(list1):
+    for file in list1:
+        with open(file, "r") as f:
+            data = json.load(f)
+            file_name = file.split("\\")[-1]
+            print (file_name)
         Case_Num = []
         Case_Numbers = []
         Party = []
@@ -35,33 +39,13 @@ def parsepdf(data, download_dir):
         Batches = []
         Fault_Files = []
         JSON_Complete_Data = []
-        last_index = 0
-        url = os.environ['ACCOUNT_URI']
-        key = os.environ['ACCOUNT_KEY']
-        client = CosmosClient(url, credential=key)            
-        database_name = "causelist"
-        container_name = "causelistcontainer"
-        database_client = client.get_database_client(database_name)
-        container_client = database_client.get_container_client(container_name)
         for value in range(len(data)):
-            if ("list of defective cases" in data[value]['Line_Data']['Value'].lower()):
-                last_index = value
-        if (last_index > 0):
-            for value in range(last_index):
-                if (regexp.search(data[value-1]['Line_Data']['Value']) and len(data[value]['Line_Data']['Value']) < 60 and case_regex.search(data[value]['Line_Data']['Value']) and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and " in" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
-                    Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
-                    Case_Numbers.append(Case_Details)
-                elif (case_regex_2nd.search(data[value]['Line_Data']['Value']) and len(data[value]['Line_Data']['Value']) < 60 and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and "in" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
-                    Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
-                    Case_Numbers.append(Case_Details)
-        else:
-            for value in range(len(data)):
-                if (regexp.search(data[value-1]['Line_Data']['Value']) and len(data[value]['Line_Data']['Value']) < 60 and case_regex.search(data[value]['Line_Data']['Value']) and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and " in" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
-                    Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
-                    Case_Numbers.append(Case_Details)
-                elif (case_regex_2nd.search(data[value]['Line_Data']['Value']) and len(data[value]['Line_Data']['Value']) < 60 and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and "in" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
-                    Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
-                    Case_Numbers.append(Case_Details)
+            if (regexp.search(data[value-1]['Line_Data']['Value']) and len(data[value]['Line_Data']['Value']) < 60 and case_regex.search(data[value]['Line_Data']['Value']) and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and " in" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
+                Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
+                Case_Numbers.append(Case_Details)
+            elif (case_regex_2nd.search(data[value]['Line_Data']['Value']) and len(data[value]['Line_Data']['Value']) < 60 and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and "in" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
+                Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
+                Case_Numbers.append(Case_Details)
         for values in range(len(Case_Numbers)):
             batch = []
             Batch = []
@@ -84,7 +68,7 @@ def parsepdf(data, download_dir):
                             Case_Numb.append(re.sub('([0-9]{1,3}\)\s)', "", data[index]['Line_Data']['Value'].strip()).strip())
                         else:
                             pass
-                    if (index > Index_1 and index < Index_2) and not(case_regex.search(data[index]['Line_Data']['Value'])) and "VKJNGT+CourierNew,Bold" not in data[index]['Line_Data']['font_name'] and len(data[index]['Line_Data']['Value']) < 70 and not(date_regex.search(data[index]['Line_Data']['Value'])) and not(page_number_rejection.search(data[index]['Line_Data']['Value'].strip().replace("\n",""))) and data[index]['Line_Data']['leftpoint_x'] > Case_Numbers[values]['Left_Point'] and data[index]['Line_Data']['leftpoint_x'] > 100 and "HON'BLE" not in data[index]['Line_Data']['Value'] and "ADJOURNMENT" not in data[index]['Line_Data']['Value'] and "file" not in data[index]['Line_Data']['Value'] and "admission" not in data[index]['Line_Data']['Value'].lower() and "hearing" not in data[index]['Line_Data']['Value'].lower() and "order" not in data[index]['Line_Data']['Value'].lower() and "part" not in data[index]['Line_Data']['Value'].lower() and " pm" not in data[index]['Line_Data']['Value'].lower() and " court" not in data[index]['Line_Data']['Value'].lower() and data[index]['Line_Data']['leftpoint_x'] > 150:
+                    if (index > Index_1 and index < Index_2) and not(case_regex.search(data[index]['Line_Data']['Value'])) and data[index]['Line_Data']['leftpoint_x'] > Case_Numbers[values]['Left_Point'] and data[index]['Line_Data']['leftpoint_x'] > 100 and "HON'BLE" not in data[index]['Line_Data']['Value'] and "ADJOURNMENT" not in data[index]['Line_Data']['Value'] and "file" not in data[index]['Line_Data']['Value'] and "admission" not in data[index]['Line_Data']['Value'].lower() and "hearing" not in data[index]['Line_Data']['Value'].lower() and "order" not in data[index]['Line_Data']['Value'].lower() and "part" not in data[index]['Line_Data']['Value'].lower() and " pm" not in data[index]['Line_Data']['Value'].lower() and " court" not in data[index]['Line_Data']['Value'].lower():
                         batch.append(data[index])
                     else:
                         continue
@@ -147,7 +131,16 @@ def parsepdf(data, download_dir):
                 JSON_Data["party_name"] = Cleaned_Party.replace("\n","")
                 JSON_Data["petitioner_advocate_name"] = Cleaned_Petiotioner_Adv.replace("\n",",")
                 JSON_Data["respondent_advocate_name"] = Cleaned_Respondent_Adv.replace("\n",",")
-                JSON_Data["state"] = "Chattisgarh"
+                # for Hearing in range(len(Hearing_Type)):
+                #     if (Hearing < len(Hearing_Type) -1):
+                #         if (Hearing_Type[Hearing+1]['Index'] > Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
+                #             JSON_Data["hearing_type"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()                                
+                #         else:
+                #             Hearing+=1
+                #     else:
+                #         if (Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
+                #             JSON_Data["hearing_type"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()
+                JSON_Data["state"] = "Madras"
                 JSON_Complete_Data.append(JSON_Data)
             elif (values == len(Case_Numbers) - 1):
                 Index_Number = Case_Numbers[values]
@@ -171,7 +164,16 @@ def parsepdf(data, download_dir):
                 JSON_Data["party_name"] = Cleaned_Party.replace("\n","")
                 JSON_Data["petitioner_advocate_name"] = Cleaned_Petiotioner_Adv.replace("\n",",")
                 JSON_Data["respondent_advocate_name"] = Cleaned_Respondent_Adv.replace("\n",",")
-                JSON_Data["state"] = "Chattisgarh"
+                # for Hearing in range(len(Hearing_Type)):
+                #     if (Hearing < len(Hearing_Type) -1):
+                #         if (Hearing_Type[Hearing+1]['Index'] > Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
+                #             JSON_Data["hearing_type"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()                                
+                #         else:
+                #             Hearing+=1
+                #     else:
+                #         if (Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
+                #             JSON_Data["hearing_type"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()    
+                JSON_Data["state"] = "Madras"
                 JSON_Complete_Data.append(JSON_Data)
         # for Cases in range(len(Case_Numbers)):
         #     for Hearing in range(len(Hearing_Type)):
@@ -183,9 +185,11 @@ def parsepdf(data, download_dir):
         #         else:
         #             if (Case_Numbers[Cases]['Index'] > Hearing_Type[Hearing]['Index']):
         #                 Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())
-        # with open(Outputlocation + "/" + file_name + "_Batches.txt" ,"w") as f:
-        #     for value in Batches:
-        #         f.write(str(value))
+        with open(Outputlocation + "/" + file_name + "_Batches.json" ,"w") as f:
+               json.dump(JSON_Complete_Data, f)
+        with open(Outputlocation + "/" + file_name + "_Batches.txt" ,"w") as f:
+            for value in Batches:   
+                f.write(str(value))
         # with open(Outputlocation + "/" + file_name + "_Hearing_Type.txt" ,"w") as f:
         #    for value in Hearing_Type:
         #        f.write(str(value))
@@ -207,29 +211,26 @@ def parsepdf(data, download_dir):
         # df4.to_excel(writer, sheet_name='Sheet1',index=False,startcol=4)
         # df5.to_excel(writer, sheet_name='Sheet1',index=False,startcol=5)
         # writer.save()
-        # print (JSON_Complete_Data)
-        for value in JSON_Complete_Data:
-            container_client.upsert_item(value)
 
-# inputlocation=input("Please enter the location of JSON : \n")
-# Outputlocation=input("Please enter the location of XML : \n")
-# list1=[]
+inputlocation=input("Please enter the location of JSON : \n")
+Outputlocation=input("Please enter the location of XML : \n")
+list1=[]
 
 def roundnumber( n ): 
     return int(math.ceil(n / 10.0)) * 10
 
-# def readjson(pathofBundle):
-#     for dirpath,dirname,filenames in os.walk(pathofBundle):
-#         for file in filenames:
-#             try:
-#                 if(file.endswith('.json')):
-#                     path=(os.path.abspath(os.path.join(dirpath,file)))
-#                     list1.append(path)
-#                 else:
-#                     continue
-#             except (FileNotFoundError, IOError):
-#                 print("runtime exception")
-#     return list1
+def readjson(pathofBundle):
+    for dirpath,dirname,filenames in os.walk(pathofBundle):
+        for file in filenames:
+            try:
+                if(file.endswith('.json')):
+                    path=(os.path.abspath(os.path.join(dirpath,file)))
+                    list1.append(path)
+                else:
+                    continue
+            except (FileNotFoundError, IOError):
+                print("runtime exception")
+    return list1
 
-# readjson(inputlocation)
-# parsefiles(list1)
+readjson(inputlocation)
+parsepdf(list1)

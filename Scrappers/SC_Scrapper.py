@@ -18,18 +18,8 @@ from Parsers.PDF_Parser_SC import parsepdf
 import time
 
 
-today_date = datetime.today().strftime('%d-%m-%Y')
-print(today_date)
-chrome_options = Options()
-download_dir = r'E:\Scrapping\SC\PDF'
-try:
-    os.makedirs(download_dir)
-except:
-    pass
-
 def scrapper(url):
     today_date = datetime.today().strftime('%d-%m-%Y')
-    print(today_date)
     chrome_options = Options()
     download_dir = r'E:\Scrapping\SC\PDF'
     try:

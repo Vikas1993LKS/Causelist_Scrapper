@@ -10,6 +10,7 @@ import json
 import re
 import pandas as pd
 import os
+from azure.cosmos import CosmosClient, PartitionKey, exceptions
 
 
 regexp = re.compile(r'^([0-9])')
@@ -20,11 +21,13 @@ date_regex = re.compile(r'(((\d{1,2}(-|\/|\.)\d{1,2}(-|\/|\.)(19|20)?\d{2}))(\.)
 page_number_rejection = re.compile(r'^([0-9]{1,2})(\/)([0-9]{1,2})$')
 
 def parsepdf(data, download_dir):
-    # for file in list1:
-    #     with open(file, "r") as f:
-    #         data = json.load(f)
-    #         file_name = file.split("\\")[-1]
-    #         print (file_name)
+        url = os.environ['ACCOUNT_URI']
+        key = os.environ['ACCOUNT_KEY']
+        client = CosmosClient(url, credential=key)            
+        database_name = "causelist"
+        container_name = "causelistcontainer"
+        database_client = client.get_database_client(database_name)
+        container_client = database_client.get_container_client(container_name)
         Case_Num = []
         Case_Numbers = []
         Party = []
@@ -171,8 +174,10 @@ def parsepdf(data, download_dir):
         # df1.to_excel(writer, sheet_name='Sheet1',index=False,startcol=1)                
         # df2.to_excel(writer, sheet_name='Sheet1',index=False,startcol=2)
         # df3.to_excel(writer, sheet_name='Sheet1',index=False,startcol=3)
-        print (JSON_Complete_data)
-
+        if (len(JSON_Complete_data) != 0):
+            print (JSON_Complete_data)
+        for value in JSON_Complete_data:
+            container_client.upsert_item(value)
 # inputlocation=input("Please enter the location of JSON : \n")
 # Outputlocation=input("Please enter the location of XML : \n")
 # list1=[]

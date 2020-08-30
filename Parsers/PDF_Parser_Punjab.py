@@ -10,6 +10,7 @@ import json
 import re
 import pandas as pd
 import os
+from azure.cosmos import CosmosClient, PartitionKey, exceptions
 
 
 regexp = re.compile(r'^([0-9])')
@@ -29,6 +30,13 @@ def parsepdf(data, download_dir):
         Batches = []
         Fault_Files = []
         JSON_Complete_Data = []
+        url = os.environ['ACCOUNT_URI']
+        key = os.environ['ACCOUNT_KEY']
+        client = CosmosClient(url, credential=key)            
+        database_name = "causelist"
+        container_name = "causelistcontainer"
+        database_client = client.get_database_client(database_name)
+        container_client = database_client.get_container_client(container_name)
         for value in range(len(data)):
             if (regexp.search(data[value-1]['Line_Data']['Value']) and len(data[value]['Line_Data']['Value']) < 60 and case_regex.search(data[value]['Line_Data']['Value']) and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and "in" not in data[value]['Line_Data']['Value'].lower() and "with" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
                 Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
@@ -66,6 +74,7 @@ def parsepdf(data, download_dir):
                 Count = 0
                 Party_Name = []
                 Judge_Name = []
+                advocate_names_all = []
                 for ind in range(len(Batch)):
                     if (ind < len(Batch) -1):
                         if (Count == 0):
@@ -79,7 +88,7 @@ def parsepdf(data, download_dir):
                                 else:
                                     Party_Name.append(Batch[ind]['Line_Data']['Value'].replace("\xa0",""))
                         elif (Count == 1):
-                            if ((Batch[ind]['Line_Data']['leftpoint_x'] == Batch[ind+1]['Line_Data']['leftpoint_x']) or (Batch[ind+1]['Line_Data']['leftpoint_x'] - Batch[ind]['Line_Data']['leftpoint_x']) < 5):
+                            if ((Batch[ind]['Line_Data']['leftpoint_x'] == Batch[ind+1]['Line_Data']['leftpoint_x']) or (Batch[ind+1]['Line_Data']['leftpoint_x'] - Batch[ind]['Line_Data']['leftpoint_x']) < 10):
                                 Judge_Name.append(Batch[ind]['Line_Data']['Value'])
                                 Left_point = Batch[ind]['Line_Data']['leftpoint_x']
                             else:
@@ -88,18 +97,10 @@ def parsepdf(data, download_dir):
                                         Judge_Name.append(Batch[ind]['Line_Data']['Value'].replace("\xa0",""))
                                 else:
                                     pass
-                        # elif (Count == 2):
-                        #     if (Batch[ind]['Line_Data']['leftpoint_x'] == Batch[ind+1]['Line_Data']['leftpoint_x']):
-                        #         Adv_Name.append(Batch[ind]['Line_Data']['Value'])
-                        #         Left_point = Batch[ind]['Line_Data']['leftpoint_x'] 
-                        #     else:
-                        #         Count+=1
                     elif (ind == len(Batch) - 1) and 200 > Batch[ind]['Line_Data']['leftpoint_x'] > 130:
                         Party_Name.append(Batch[ind]['Line_Data']['Value'].replace("\xa0",""))
                     elif (ind == len(Batch) - 1) and Batch[ind]['Line_Data']['leftpoint_x'] > 290:
                         Judge_Name.append(Batch[ind]['Line_Data']['Value'].replace("\xa0",""))
-                    # elif (ind == len(Batch) - 1) and 500 > Batch[ind]['Line_Data']['leftpoint_x'] > 400:
-                    #     Adv_Name.append(Batch[ind]['Line_Data']['Value'].replace("\xa0",""))
                 if len(Case_Numb) != 0:
                     if (len(Party_Name) == 0):
                         Fault_Files.append("For the case_number {}, the Party name is not captured".format(Case_Numb[0]))
@@ -109,19 +110,22 @@ def parsepdf(data, download_dir):
                     pass
                 Cleaned_Case_Numbers = ", ".join(Case_Numb)
                 Cleaned_Judge = " ".join(Judge_Name)
+                Cleaned_Judge = Cleaned_Judge.replace("\n", ", ")
                 Cleaned_Party = " ".join(Party_Name)
-                #Cleaned_Adv_Name = " ".join(Adv_Name)
                 Cleaned_Date_List = ", ".join(Datelist)
                 Party.append(Cleaned_Party.replace("\n",""))
                 Jud_Name.append(Cleaned_Judge.replace("\n",""))
                 Date_List.append(Cleaned_Date_List.replace("\n",""))
                 Case_Num.append(Cleaned_Case_Numbers)
                 JSON_Data = {"case_numbers": Cleaned_Case_Numbers}
-                JSON_Data["party_name"] = Cleaned_Party
-                JSON_Data["advocate_names"] = Cleaned_Judge
+                JSON_Data["party_names"] = Cleaned_Party.replace("\n", "")
+                for name in Cleaned_Judge.split(","):
+                    if (name.strip() != ""):
+                        advocate_name = {"name": name.strip()}
+                        advocate_names_all.append(advocate_name)
+                JSON_Data["advocate_names"] = advocate_names_all
                 JSON_Data["state"] = "PNH"
                 JSON_Data["date"] = Cleaned_Date_List
-                #Advocate_Names_Respondent.append(Cleaned_Adv_Name)
                 JSON_Complete_Data.append(JSON_Data)
         # for value in range(len(data)):
         #     for case in range(len(Case_Numbers) -1):
@@ -147,7 +151,9 @@ def parsepdf(data, download_dir):
         # df2.to_excel(writer, sheet_name='Sheet1',index=False,startcol=2)
         # df3.to_excel(writer, sheet_name='Sheet1',index=False,startcol=3)
         # writer.save()
-        print (JSON_Complete_Data)
+        # print (JSON_Complete_Data)
+        for value in JSON_Complete_Data:
+            container_client.upsert_item(value)
 
 # inputlocation=input("Please enter the location of JSON : \n")
 # Outputlocation=input("Please enter the location of XML : \n")

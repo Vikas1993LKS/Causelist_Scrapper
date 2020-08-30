@@ -1,35 +1,32 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jul  8 17:16:32 2020
-
+Created on Tue Aug 18 17:40:06 2020
 @author: Vikas Gupta
 """
 
-
 import os
-import sys
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-sys.path.append(r'E:\D_Drive\Scrapping\Causelist_Project')
 from webdriver_manager.chrome import ChromeDriverManager
+import sys
+sys.path.append(r'E:\D_Drive\Scrapping\Causelist_Project')
 from datetime import datetime
-from Segmentation.Segmentation_code import parseFiles
-from Parsers.PDF_Parser_Uttarakhand import parsepdf
 import time
 from selenium.webdriver.common.keys import Keys
+from Segmentation.Segmentation_code import parseFiles
+from Parsers.PDF_Parser_Calcutta import parsepdf
 
-today_date = datetime.today().strftime('%d-%m-%Y')
-print(today_date)
 
-chrome_options = Options()
-download_dir = r"E:\Scrapping\Uttarakhand"
-try:
-    os.makedirs(download_dir)
-except:
-    pass
-
-def scrapper(url):
+def Scrapper(url): 
+    today_date = datetime.today().strftime('%d.%m.%Y')
+    print(today_date)
+    chrome_options = Options()
+    download_dir = r'E:\Scrapping\Calcutta\PDF' # + '\/'+  today_date 
+    try:
+        os.makedirs(download_dir)
+    except:
+        pass
+        
     options = webdriver.ChromeOptions()
     options.add_experimental_option('prefs', {
     "download.default_directory": download_dir,  # Change default directory for downloads
@@ -45,41 +42,19 @@ def scrapper(url):
     
     driver.get(url)
     
-    Daily_Causelist_Select_Button = driver.find_element_by_xpath("/html/body/form/div/div[2]/input")
-    
-    Daily_Causelist_Select_Button.click()
-    
-    Submit_button = driver.find_element_by_xpath("/html/body/form/div/div[3]/div/input[2]")
-    
-    Submit_button.click()
-    
-    date_selection = driver.find_element_by_xpath("/html/body/b/form/div/select")
-    
-    for date in date_selection.find_elements_by_xpath(".//option"):
-        if (date.text == "25-08-2020"):
-            date.click()
-            
-    Causelist_PDF = driver.find_element_by_xpath("/html/body/b/form/table/tbody/tr[2]/td/input")
-    
-    Causelist_PDF.click()
-    
-    
-    driver.find_element_by_tag_name('body').send_keys(Keys.COMMAND + Keys.RETURN + "2")
-    
-    window_after = driver.window_handles[1]
-    time.sleep(5)
-    # driver.switch_to.window(window_after)
-    driver.switch_to.window(window_after);
-# print('window after' ,window_after)
-# current_url = driver.current_url
-# print('current url' ,current_url)
+    causelist_elements = driver.find_element_by_xpath("/html/body/div/div[2]/div/div/div")
+    for causelist in causelist_elements.find_elements_by_xpath(".//a"):
+        for heading_element in causelist.find_elements_by_xpath(".//h5"):
+            if (today_date in heading_element.text):
+                pdf_element = causelist.get_attribute("href")
+                driver.get(pdf_element)
+    return download_dir
+                
 
-# #print('element' , element.get_attribute("innerHTML"))
-# driver.get(current_url)
-    
-url = "http://clists.nic.in/viewlist/index.php?court=U0dsbmFDQkRiM1Z5ZENCdlppQlZkSFJoY21GcmFHRnVaQ0JoZENCT1lXbHVhWFJoYkE9PQ==&q=TkdJMFlUazJZV000WW1JNE5XTmpOelUzTnpVeFpXTXlNRFZrWXpVMFkyUT0="
+url = "https://www.calcuttahighcourt.gov.in/Notices/CL"
 
 list1 = []
+
 list2 = []
 
 def PDFLocation(pathofPDF):
@@ -108,7 +83,7 @@ def jsonread(pathofjson):
                 print("runtime exception")
     return list2
 
-scrapper(url)
+download_dir = Scrapper(url)
 
 time.sleep(15)
 
@@ -118,3 +93,4 @@ json_list = jsonread(download_dir)
 
 for file in pdf_list:
     parsepdf(parseFiles(file, download_dir), download_dir)
+    

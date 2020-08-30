@@ -11,7 +11,7 @@ import re
 import pandas as pd
 import os
 import math
-
+from azure.cosmos import CosmosClient, PartitionKey, exceptions
 
 regexp = re.compile(r'^([0-9])')
 case_regex = re.compile(r'(((of|OF|\/|-)(\s)?[0-9]{4})(\s)?(\([-a-zA-Z0-9\s]+\)$)?)')
@@ -31,6 +31,13 @@ def parsepdf(data, download_dir):
         Batches = []
         Fault_Files = []
         JSON_Complete_Data = []
+        url = os.environ['ACCOUNT_URI']
+        key = os.environ['ACCOUNT_KEY']
+        client = CosmosClient(url, credential=key)            
+        database_name = "causelist"
+        container_name = "causelistcontainer"
+        database_client = client.get_database_client(database_name)
+        container_client = database_client.get_container_client(container_name)
         for value in range(len(data)):
             if (regexp.search(data[value-1]['Line_Data']['Value']) and len(data[value]['Line_Data']['Value']) < 60 and case_regex.search(data[value]['Line_Data']['Value']) and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and " in" not in data[value]['Line_Data']['Value'].lower() and "with" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
                 Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
@@ -177,7 +184,9 @@ def parsepdf(data, download_dir):
 #         df2.to_excel(writer, sheet_name='Sheet1',index=False,startcol=2)
 #         df3.to_excel(writer, sheet_name='Sheet1',index=False,startcol=3)
 #         writer.save()
-        print (JSON_Complete_Data)
+        # print (JSON_Complete_Data)
+        for value in JSON_Complete_Data:
+            container_client.upsert_item(value)
 
 # inputlocation=input("Please enter the location of JSON : \n")
 # Outputlocation=input("Please enter the location of XML : \n")

@@ -77,9 +77,9 @@ def parsepdf(data, download_dir):
                      Advocate_Names.append(excel_generator(Value_Tuple)[2])
                      Batches.append(Batch)
                      JSON_Complete_data.append(json_generator(Value_Tuple))
-            print (JSON_Complete_data)
-            # for value in JSON_Complete_data:
-            #     container_client.upsert_item(value)
+            # print (JSON_Complete_data)
+            for value in JSON_Complete_data:
+                container_client.upsert_item(value)
 
 def information_extractor(batch):
     Case_Num = []
@@ -139,7 +139,7 @@ def json_generator(Value_Tuple):
         advocate_name = {"name": name}
         advocate_names_all.append(advocate_name)
     JSON_Data["advocate_names"] = advocate_names_all
-    JSON_Data["city"] = "Delhi"
+    JSON_Data["state"] = "Delhi"
     return JSON_Data
     
 # list1 = []

@@ -35,8 +35,7 @@ def scrapper(url):
     "download.default_directory": download_dir,  # Change default directory for downloads
     "download.prompt_for_download": False,
     "plugins.always_open_pdf_externally": True  # To auto download the file
-    }) 
-    
+    })
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--window-size=1920,1080")
     driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
@@ -73,10 +72,6 @@ def scrapper(url):
     window_after = driver.window_handles[1]
     time.sleep(3)
     driver.switch_to.window(window_after)
-# current_url = driver.current_url
-# driver.get(current_url)
-
-# driver.quit()
 
 url = "https://highcourtchd.gov.in/clc.php"
 

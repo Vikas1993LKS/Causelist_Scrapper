@@ -27,7 +27,6 @@ def Scrapper(url):
         os.makedirs(download_dir)
     except:
         pass
-    
     options = webdriver.ChromeOptions()
     options.add_experimental_option('prefs', {
     "download.default_directory": download_dir,  # Change default directory for downloads
@@ -94,5 +93,6 @@ pdf_list = PDFLocation(download_dir)
 json_list = jsonread(download_dir)
 
 for file in pdf_list:
+    print (file)
     parsepdf(parseFiles(file, download_dir), download_dir)
     

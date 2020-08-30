@@ -12,6 +12,7 @@ import pandas as pd
 import os
 import math
 import numpy as np
+from azure.cosmos import CosmosClient, PartitionKey, exceptions
 
 
 regexp = re.compile(r'^([0-9])')
@@ -24,11 +25,6 @@ date_regex = re.compile(r'(((\d{1,2}(-|\/|\.)\d{1,2}(-|\/|\.)(19|20)?\d{2}))(\.)
 page_number_rejection = re.compile(r'^([0-9]{1,2})(\/)([0-9]{1,2})$|^([0-9]{1,3})$|(Advocate)$|(Petitioner(\s+)?\/(\s+)?Respondent)$')
 
 def parsepdf(data, download_dir):
-    # for file in list1:
-    #     with open(file, "r") as f:
-    #         data = json.load(f)
-    #         file_name = file.split("\\")[-1]
-    #         print (file_name)
         Case_Num = []
         Case_Numbers = []
         Party = []
@@ -42,6 +38,13 @@ def parsepdf(data, download_dir):
         IA_Details = []
         Fault_Files = []
         JSON_Complete_Data = []
+        url = os.environ['ACCOUNT_URI']
+        key = os.environ['ACCOUNT_KEY']
+        client = CosmosClient(url, credential=key)            
+        database_name = "causelist"
+        container_name = "causelistcontainer"
+        database_client = client.get_database_client(database_name)
+        container_client = database_client.get_container_client(container_name)
         for value in range(len(data)):
             if (regexp.search(data[value-1]['Line_Data']['Value'].strip()) and "Connected" not in data[value-4]['Line_Data']['Value'] and "Connected" not in data[value-3]['Line_Data']['Value'] and  data[value]['Line_Data']['leftpoint_x'] < 130 and len(data[value]['Line_Data']['Value']) < 60 and case_regex.search(data[value]['Line_Data']['Value']) and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and " in" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
                 Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
@@ -181,7 +184,7 @@ def parsepdf(data, download_dir):
                 Cleaned_Case_Numbers = ", ".join(Case_Numb)
                 JSON_Data = {"case_numbers" : Cleaned_Case_Numbers}
                 Cleaned_Party = " ".join(Party_Name)
-                JSON_Data["party_name"] = Cleaned_Party
+                JSON_Data["party_names"] = Cleaned_Party.replace("\n","")
                 Cleaned_Petitioner_Adv = "".join(Petitioner_Advocates)
                 for name in Cleaned_Petitioner_Adv.split(","):
                     advocate_name = {"name": name}
@@ -197,7 +200,7 @@ def parsepdf(data, download_dir):
                     cleaned_IA_Details = ", ".join(additional_details(Cleaned_Additional_Details))
                 else:
                     cleaned_IA_Details = ""
-                JSON_Data["Additional_Details"] = cleaned_IA_Details
+                JSON_Data["additional_details"] = cleaned_IA_Details
                 if len(Case_Numb) != 0:
                     if (len(Party_Name) == 0):
                         Fault_Files.append("For the case_number {}, the Party name is not captured".format(Case_Numb[0]))
@@ -211,13 +214,15 @@ def parsepdf(data, download_dir):
                     if (Hearing < len(Hearing_Type) -1):
                         if (Hearing_Type[Hearing+1]['Index'] > Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
                             Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())                                
-                            JSON_Data["Hearing_Details"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()
+                            JSON_Data["hearing_details"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()
+                            JSON_Data["state"] = "Supreme Court"
                         else:
                             Hearing+=1
                     else:
                         if (Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
                             Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())
-                            JSON_Data["Hearing_Details"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()
+                            JSON_Data["hearing_details"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()
+                            JSON_Data["state"] = "Supreme Court"
                 Case_Num.append(Cleaned_Case_Numbers.replace("in,","in").replace("C.R.P.,","C.R.P.").replace("With, ","With ").replace("CRP,", "CRP "))
                 Party.append(Cleaned_Party.replace("\n",""))
                 Petitioner_Advocate.append(Cleaned_Petitioner_Adv)
@@ -260,6 +265,8 @@ def parsepdf(data, download_dir):
                 Respondent_Advocate.append(Cleaned_Respondent_Adv)
                 Additional_Details.append(Cleaned_Additional_Details)    
         print (JSON_Complete_Data)
+        # for value in JSON_Complete_Data:
+        #     container_client.upsert_item(value)
         # for Cases in range(len(Case_Numbers)):
         #     for Hearing in range(len(Hearing_Type)):
         #         if (Hearing < len(Hearing_Type) -1):

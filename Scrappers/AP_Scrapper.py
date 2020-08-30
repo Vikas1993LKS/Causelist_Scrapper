@@ -44,6 +44,8 @@ def scrapper(url):
     
     driver.get(url)
     
+    time.sleep(3)
+    
     Date_Selection = driver.find_element_by_xpath("/html/body/form/table/tbody/tr/td/table/tbody/tr[3]/td/input[1]")
     
     Date_Selection.send_keys(input("Enter the date in dd-mm-yyyy format"))
@@ -114,4 +116,5 @@ pdf_list = PDFLocation(download_dir)
 json_list = jsonread(download_dir)
 
 for file in pdf_list:
+    print (file)
     parsepdf(parseFiles(file, download_dir), download_dir)

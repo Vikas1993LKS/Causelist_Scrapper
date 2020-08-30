@@ -10,6 +10,7 @@ import json
 import re
 import pandas as pd
 import os
+from azure.cosmos import CosmosClient, PartitionKey, exceptions
 
 
 regexp = re.compile(r'^([0-9])')
@@ -30,6 +31,13 @@ def parsepdf(data, download_dir):
         Batches = []
         Fault_Files = []
         JSON_Complete_Data = []
+        url = os.environ['ACCOUNT_URI']
+        key = os.environ['ACCOUNT_KEY']
+        client = CosmosClient(url, credential=key)            
+        database_name = "causelist"
+        container_name = "causelistcontainer"
+        database_client = client.get_database_client(database_name)
+        container_client = database_client.get_container_client(container_name)
         for value in range(len(data)):
             if (regexp.search(data[value-1]['Line_Data']['Value']) and len(data[value]['Line_Data']['Value']) < 60 and case_regex.search(data[value]['Line_Data']['Value']) and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and " in" not in data[value]['Line_Data']['Value'].lower() and "with" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
                 Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
@@ -54,12 +62,13 @@ def parsepdf(data, download_dir):
                             Case_Numb.append(data[index]['Line_Data']['Value'].strip())
                         else:
                             pass
-                    if (index > Index_1 and index < Index_2) and "VKJNGT+CourierNew,Bold" not in data[index]['Line_Data']['font_name'] and len(data[index]['Line_Data']['Value']) < 70 and not(date_regex.search(data[index]['Line_Data']['Value'])) and not(page_number_rejection.search(data[index]['Line_Data']['Value'].strip().replace("\n",""))) and data[index]['Line_Data']['leftpoint_x'] > Case_Numbers[values]['Left_Point'] and data[index]['Line_Data']['leftpoint_x'] > 100 and "HON'BLE" not in data[index]['Line_Data']['Value'] and "file" not in data[index]['Line_Data']['Value'] and "admission" not in data[index]['Line_Data']['Value'].lower() and "hearing" not in data[index]['Line_Data']['Value'].lower() and "order" not in data[index]['Line_Data']['Value'].lower() and "part" not in data[index]['Line_Data']['Value'].lower() and " pm" not in data[index]['Line_Data']['Value'].lower():
+                    if (index > Index_1 and index < Index_2) and "VKJNGT+CourierNew,Bold" not in data[index]['Line_Data']['font_name'] and len(data[index]['Line_Data']['Value']) < 70 and not(date_regex.search(data[index]['Line_Data']['Value'])) and not(page_number_rejection.search(data[index]['Line_Data']['Value'].strip().replace("\n",""))) and data[index]['Line_Data']['leftpoint_x'] > Case_Numbers[values]['Left_Point'] and "HON'BLE" not in data[index]['Line_Data']['Value'] and "file" not in data[index]['Line_Data']['Value'] and "admission" not in data[index]['Line_Data']['Value'].lower() and "hearing" not in data[index]['Line_Data']['Value'].lower() and "order" not in data[index]['Line_Data']['Value'].lower() and "part" not in data[index]['Line_Data']['Value'].lower() and " pm" not in data[index]['Line_Data']['Value'].lower():
                         batch.append(data[index])
                     else:
                         continue
                 Batch = sorted(batch, key=
                                        lambda x: (round(x['Line_Data']['leftpoint_x'], 0)))
+                # print (Batch)
                 Count = 0
                 for ind in range(len(Batch)):
                     if (ind < len(Batch) -1):
@@ -114,10 +123,10 @@ def parsepdf(data, download_dir):
                 Advocate_Names_Respondent.append(Cleaned_Adv_Name)
                 Batches.append(Batch)
                 JSON_Data = {"case_numbers": Cleaned_Case_Numbers}
-                JSON_Data["party_name"] = Cleaned_Party.replace("\n","")
-                JSON_Data["petitioner_advocate_name"] = Cleaned_Judge.replace("\n",",").strip()
+                JSON_Data["petitioner_advocate_name"] = Cleaned_Party.replace("\n","")
                 JSON_Data["respondent_advocate_name"] = Cleaned_Judge.replace("\n",",").strip()
-                JSON_Data["state"] = "AP"
+                JSON_Data["remarks"] = Cleaned_Judge.replace("\n",",").strip()
+                JSON_Data["state"] = "Andhra Pradesh"
                 JSON_Complete_Data.append(JSON_Data)
             elif (values == len(Case_Numbers) - 1):
                 Index_Number = Case_Numbers[values]
@@ -144,10 +153,10 @@ def parsepdf(data, download_dir):
                 Case_Num.append(Cleaned_Case_Numbers)
                 Advocate_Names_Respondent.append(Cleaned_Adv_Name)
                 JSON_Data = {"case_numbers": Cleaned_Case_Numbers}
-                JSON_Data["party_name"] = Cleaned_Party.replace("\n","")
-                JSON_Data["petitioner_advocate_name"] = Cleaned_Judge.replace("\n",",").strip()
+                JSON_Data["petitioner_advocate_name"] = Cleaned_Party.replace("\n",",")
                 JSON_Data["respondent_advocate_name"] = Cleaned_Judge.replace("\n",",").strip()
-                JSON_Data["state"] = "AP"
+                JSON_Data["remarks"] = Cleaned_Adv_Name.replace("\n","").strip()
+                JSON_Data["state"] = "Andhra Pradesh"
                 JSON_Complete_Data.append(JSON_Data)
         # with open(Outputlocation + "/" + file_name + "_Batches.txt" ,"w") as f:
         #    for value in Case_Numbers:
@@ -173,3 +182,5 @@ def parsepdf(data, download_dir):
         # df3.to_excel(writer, sheet_name='Sheet1',index=False,startcol=3)
         # writer.save()
         print (JSON_Complete_Data)
+        for value in JSON_Complete_Data:
+            container_client.upsert_item(value)
