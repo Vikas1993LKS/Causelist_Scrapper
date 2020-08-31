@@ -10,27 +10,34 @@ import json
 import re
 import pandas as pd
 import os
-from azure.cosmos import CosmosClient, PartitionKey, exceptions
-
+# from azure.cosmos import CosmosClient, PartitionKey, exceptions
+from pymongo import MongoClient
 
 Case_Regex = re.compile(r'(((of|OF|\/|-)(\s)?[0-9]{4})(\s)?(\([-a-zA-Z0-9\s]+\)$)?)')
 
 
 def parsepdf(data, download_dir):
-    # for i in list1:
             Case_Numbers = []
             Party_Names = []
             Advocate_Names = []
             Index_Numbers = []
             Batches = []
             JSON_Complete_data = []
-            url = os.environ['ACCOUNT_URI']
-            key = os.environ['ACCOUNT_KEY']
-            client = CosmosClient(url, credential=key)            
-            database_name = "causelist"
-            container_name = "causelistcontainer"
-            database_client = client.get_database_client(database_name)
-            container_client = database_client.get_container_client(container_name)
+            db_name = os.getenv("MONGO_DB")
+            host = os.getenv("MONGO_HOST")
+            port = 10255
+            username = os.getenv("MONGO_USERNAME")
+            password = os.getenv("MONGO_PASSWORD")
+            args = "ssl=true&retrywrites=false&ssl_cert_reqs=CERT_NONE"
+            connection_uri = f"mongodb://{username}:{password}@{host}:{port}/{db_name}?{args}"
+            client = MongoClient(connection_uri)
+            db = client[db_name]
+            user_collection = db['user']
+            # print (user_collection)
+            # database_name = "causelist"
+            # container_name = "causelistcontainer"
+            # database_client = client.get_database_client(database_name)
+            # container_client = database_client.get_container_client(container_name)
             #with open(file ,"r") as f:
             #file_name = file.split("\\")[-1]
             #data = json.load(content)
@@ -79,7 +86,8 @@ def parsepdf(data, download_dir):
                      JSON_Complete_data.append(json_generator(Value_Tuple))
             # print (JSON_Complete_data)
             for value in JSON_Complete_data:
-                container_client.upsert_item(value)
+                user_collection.insert_one(value)
+                # container_client.upsert_item(value)
 
 def information_extractor(batch):
     Case_Num = []
