@@ -38,8 +38,6 @@ def Scrapper(url):
     driver.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
     params = {'cmd': 'Page.setDownloadBehavior', 'params': {'behavior': 'allow', 'downloadPath': download_dir}}
     command_result = driver.execute("send_command", params)
-    
-    
     driver.get(url)
     ul_list = driver.find_elements(By.XPATH, "//*[@id='InnerPageContent']/ul/li")
     count = 1
