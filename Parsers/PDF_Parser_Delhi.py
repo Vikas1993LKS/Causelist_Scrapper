@@ -23,12 +23,12 @@ def parsepdf(data, download_dir):
             Index_Numbers = []
             Batches = []
             JSON_Complete_data = []
-            db_name = os.getenv("MONGO_DB")
+            db_name = "causelist"
             host = os.getenv("MONGO_HOST")
             port = 10255
             username = os.getenv("MONGO_USERNAME")
             password = os.getenv("MONGO_PASSWORD")
-            args = "ssl=true&retrywrites=false&ssl_cert_reqs=CERT_NONE"
+            args = "ssl=true&retrywrites=false&ssl_cert_reqs=CERT_NONE&connect=false"
             connection_uri = f"mongodb://{username}:{password}@{host}:{port}/{db_name}?{args}"
             client = MongoClient(connection_uri)
             db = client[db_name]

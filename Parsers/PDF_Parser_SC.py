@@ -13,7 +13,7 @@ import os
 import math
 import numpy as np
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
-
+from pymongo import MongoClient
 
 regexp = re.compile(r'^([0-9])')
 listing_details = re.compile(r'(WITH CRIL REV. PETN.)|(Loan settlement matter)|(No Compliance Report)|(Eviction from Land matters)|(Finance & Tax matter)|(Land Records matter)|(Contract matters)|(Compensation matter)|(Supplying GI Pipes (PHED))|(Commerce & Industries)|(E-Tender (PHED))|(Settlement & Land Records)', re.IGNORECASE)
@@ -38,13 +38,23 @@ def parsepdf(data, download_dir):
         IA_Details = []
         Fault_Files = []
         JSON_Complete_Data = []
-        url = os.environ['ACCOUNT_URI']
-        key = os.environ['ACCOUNT_KEY']
-        client = CosmosClient(url, credential=key)            
-        database_name = "causelist"
-        container_name = "causelistcontainer"
-        database_client = client.get_database_client(database_name)
-        container_client = database_client.get_container_client(container_name)
+        db_name = os.environ['MONGO_DB']
+        host = os.environ['MONGO_HOST']
+        port = 10255
+        username = os.environ['MONGO_USERNAME']
+        password = os.environ['MONGO_PASSWORD']
+        args = "ssl=true&retrywrites=false&ssl_cert_reqs=CERT_NONE&connect=false"
+        connection_uri = f"mongodb://{username}:{password}@{host}:{port}/{db_name}?{args}"
+        client = MongoClient(connection_uri)
+        db = client[db_name]
+        user_collection = db['user']
+        # url = os.environ['ACCOUNT_URI']
+        # key = os.environ['ACCOUNT_KEY']
+        # client = CosmosClient(url, credential=key)            
+        # database_name = "causelist"
+        # container_name = "causelistcontainer"
+        # database_client = client.get_database_client(database_name)
+        # container_client = database_client.get_container_client(container_name)
         for value in range(len(data)):
             if (regexp.search(data[value-1]['Line_Data']['Value'].strip()) and "Connected" not in data[value-4]['Line_Data']['Value'] and "Connected" not in data[value-3]['Line_Data']['Value'] and  data[value]['Line_Data']['leftpoint_x'] < 130 and len(data[value]['Line_Data']['Value']) < 60 and case_regex.search(data[value]['Line_Data']['Value']) and not(date_regex.search(data[value]['Line_Data']['Value'])) and "on appeal" not in data[value]['Line_Data']['Value'].lower() and "on an intended appeal" not in data[value]['Line_Data']['Value'].lower() and "file" not in data[value]['Line_Data']['Value'].lower() and "listed" not in data[value]['Line_Data']['Value'].lower() and " in" not in data[value]['Line_Data']['Value'].lower() and "&" not in data[value]['Line_Data']['Value'].lower() and " pm" not in data[value]['Line_Data']['Value'].lower() and " am" not in data[value]['Line_Data']['Value'].lower()):
                 Case_Details = {"Value" : data[value]['Line_Data']['Value'], "Index": value, "Left_Point" : data[value]['Line_Data']['leftpoint_x'], "Left_Point_Y" : data[value]['Line_Data']['leftpoint_y']}
@@ -264,7 +274,10 @@ def parsepdf(data, download_dir):
                 Petitioner_Advocate.append(Cleaned_Petitioner_Adv)
                 Respondent_Advocate.append(Cleaned_Respondent_Adv)
                 Additional_Details.append(Cleaned_Additional_Details)    
-        print (JSON_Complete_Data)
+        #print (JSON_Complete_Data)
+        for value in JSON_Complete_Data:
+            user_collection.insert_one(value)
+        
         # for value in JSON_Complete_Data:
         #     container_client.upsert_item(value)
         # for Cases in range(len(Case_Numbers)):
