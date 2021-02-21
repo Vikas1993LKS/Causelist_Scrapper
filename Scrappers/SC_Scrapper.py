@@ -9,7 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from datetime import datetime
 import sys
-sys.path.append(r'E:\D_Drive\Scrapping\Causelist_Project')
+sys.path.append(r'D:\Scrapping\Scrapping\Causelist_Project')
 import os
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
@@ -21,7 +21,7 @@ import time
 def scrapper(url):
     today_date = datetime.today().strftime('%d-%m-%Y')
     chrome_options = Options()
-    download_dir = r'E:\Scrapping\SC\PDF'
+    download_dir = r'D:\Scrapping\SC\PDF'
     try:
         os.makedirs(download_dir)
     except:
@@ -38,7 +38,7 @@ def scrapper(url):
     params = {'cmd': 'Page.setDownloadBehavior', 'params': {'behavior': 'allow', 'downloadPath': download_dir}}
     command_result = driver.execute("send_command", params)
     driver.get(url)
-    
+    time.sleep(4)
     Causelist_Table = driver.find_element_by_xpath("/html/body/div[2]/div[2]/div/div/div[1]/div/div/div/div/div/div/div/div/div/div[2]/table")
     
     for row in Causelist_Table.find_elements_by_xpath(".//tr"):

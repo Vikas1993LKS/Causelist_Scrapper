@@ -14,7 +14,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime
 import time
 import re
-from azure.cosmos import CosmosClient, PartitionKey, exceptions
+# from azure.cosmos import CosmosClient, PartitionKey, exceptions
 
 today_date = datetime.today().strftime('%d-%m-%Y')
 print(today_date)
@@ -70,6 +70,8 @@ Whole_data_dict = []
 
 Counters = []
 
+Judge_Counters = []
+
 Counter = 0
 
 for row in table_element.find_elements_by_xpath(".//tr"):
@@ -84,23 +86,47 @@ for row in table_element.find_elements_by_xpath(".//tr"):
         # Case_Number_row_data = [x.strip() for x in Case_Number_row_data if x]
         # #print (Case_Number_row_data)
         Counters.append(Counter)
+    elif ("HONOURABLE" in row_text):
+        Judge = {"judge_name": row_text, "Index": Counter}
+        Judge_Counters.append(Judge)
+
+Judge_Names = []
+Judge_Name_Causelist = []
+for value in range(len(Judge_Counters)):
+    if (value < len(Judge_Counters) - 1):
+        if (Judge_Counters[value + 1]['Index'] - Judge_Counters[value]['Index'] < 3):
+            Judge_Names.append(Judge_Counters[value]['judge_name'].strip())
+        else:
+            #Judge_Name.append(Metadata_details_judge_name[value + 1]['judge_name'])
+            Judge_Names.append(Judge_Counters[value]['judge_name'].strip())
+            Judge_Details = {"judge_name" : Judge_Names, "Index" : Judge_Counters[value]['Index']}
+            Judge_Name_Causelist.append(Judge_Details)
+            Judge_Names = []
+    elif (value == len(Judge_Counters) -1) and (Judge_Counters[value]['Index'] - Judge_Counters[value - 1]['Index'] < 3) :
+        Judge_Names.append(Judge_Counters[value]['judge_name'].strip())
+        Judge_Details = {"judge_name" : Judge_Names, "Index" : Judge_Counters[value]['Index']}
+        Judge_Name_Causelist.append(Judge_Details)
+        Judge_Names = []
+
+#print (Counters)
+print (Judge_Name_Causelist)
 
 case_index = 0
 Batches = []
 
-def batchprocessor(batch):
+def batchprocessor(batch, judge_name_all):
     Party = []
     Petitioner_advocate = []
     Respondent_advocate = []
     Case_Type = ""
     JSON_Complete_Data = []
-    url = os.environ['ACCOUNT_URI']
-    key = os.environ['ACCOUNT_KEY']
-    client = CosmosClient(url, credential=key)            
-    database_name = "causelist"
-    container_name = "causelistcontainer"
-    database_client = client.get_database_client(database_name)
-    container_client = database_client.get_container_client(container_name)
+    # url = os.environ['ACCOUNT_URI']
+    # key = os.environ['ACCOUNT_KEY']
+    # client = CosmosClient(url, credential=key)            
+    # database_name = "causelist"
+    # container_name = "causelistcontainer"
+    # database_client = client.get_database_client(database_name)
+    # container_client = database_client.get_container_client(container_name)
     for value in range(len(batch)):
         advocate_names_all_petitioner = []
         advocate_names_all_respondent = []
@@ -168,19 +194,34 @@ def batchprocessor(batch):
         advocate_name = {"name": name}
         advocate_names_all_respondent.append(advocate_name)
     JSON_Data["respondent_advocate_names"] = advocate_names_all_respondent
+    JSON_Data["judge_names"] = judge_name_all
     JSON_Data["state"] = "Himachal Pradesh"
     JSON_Complete_Data.append(JSON_Data)
-    # print (JSON_Complete_Data)
-    for value in JSON_Complete_Data:
-        container_client.upsert_item(value)    
+    print (JSON_Complete_Data)
+    # for value in JSON_Complete_Data:
+    #     container_client.upsert_item(value)    
     
 for index in range(len(Counters) - 1):
     batch = []
+    judge_name_all = []
     for value in Whole_data_dict:
             if value['index'] >= Counters[index] and value['index'] < Counters[index + 1] and "page" not in value['Case_data'].lower() and not(page_number_rejection.search(value['Case_data'])):
                 batch.append(value)
+            for Judge in range(len(Judge_Name_Causelist)):
+                if (Judge < len(Judge_Name_Causelist) -1):
+                    if (Judge_Name_Causelist[Judge+1]['Index'] >  value['index'] > Judge_Name_Causelist[Judge]['Index']):
+                        for name in Judge_Name_Causelist[Judge]['judge_name']:
+                            judge_name = {"name": name.replace("\n", "")}
+                            judge_name_all.append(judge_name)
+                    else:
+                        Judge+=1
+                else:
+                    if (value['index'] > Judge_Name_Causelist[Judge]['Index']):
+                        for name in Judge_Name_Causelist[Judge]['judge_name']:
+                            judge_name = {"name": name.replace("\n", "")}
+                            judge_name_all.append(judge_name)
     if (len(batch) != 0):
-        batchprocessor(batch)
+        batchprocessor(batch, judge_name_all)
 
 
 

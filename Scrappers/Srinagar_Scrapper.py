@@ -14,16 +14,16 @@ from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
-def Reverse(lst): 
-    return [ele for ele in reversed(lst)] 
 
-today_date = ".".join(Reverse(str(datetime.date.today() + datetime.timedelta(1)).split("-")))
+#today_date = ".".join(Reverse(str(datetime.date.today() + datetime.timedelta(1)).split("-")))
+
+today_date = "07.09.2020"
 
 print (today_date)
 # today_date = datetime.strftime('%d.%m.%Y')
         
 chrome_options = Options()
-download_dir = r'E:\Scrapping\Srinagar\PDF'
+download_dir = r'D:\Scrapping\Srinagar\PDF'
 try:
     os.makedirs(download_dir)
 except:

@@ -14,16 +14,12 @@ from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
-# def Reverse(lst): 
-#     return [ele for ele in reversed(lst)] 
-
-# today_date = ".".join(Reverse(str(datetime.date.today() + datetime.timedelta(1)).split("-")))
-
-
-today_date = datetime.today().strftime('%d-%m-%Y')
-        
+#today_date = datetime.today().strftime('%d-%m-%Y')
+ 
+today_date = "07.09.2020"
+       
 chrome_options = Options()
-download_dir = r'E:\Scrapping\Jammu\PDF'
+download_dir = r'D:\Scrapping\Jammu\PDF'
 try:
     os.makedirs(download_dir)
 except:
@@ -44,16 +40,9 @@ command_result = driver.execute("send_command", params)
 
 driver.get(url)
 
-for element in driver.find_elements_by_xpath(".//strong"):
-    try:
-        if (today_date in element.text and "Advance List" in element.text):
-            new_url = element.find_element_by_xpath(".//a").get_attribute("href")
-            element.click()
-            driver.get(new_url)
-            time.sleep(3)
-            for causelist in driver.find_elements_by_xpath(".//strong"):
-                if ("Entire List" in causelist.text):
-                    causelist_element = causelist.find_element_by_xpath(".//a").get_attribute("href")
-                    driver.get(causelist_element)
-    except:
-        driver.get(url)
+for causelist in driver.find_elements_by_xpath(".//strong"):
+    if ("Entire List" in causelist.text):
+        causelist_element = causelist.find_element_by_xpath(".//a").get_attribute("href")
+        print (causelist_element)
+        driver.get(causelist_element)
+        break

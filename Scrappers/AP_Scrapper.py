@@ -9,7 +9,7 @@ Created on Thu Jul 30 16:23:50 2020
 import os
 import sys
 from selenium import webdriver
-sys.path.append(r'E:\D_Drive\Scrapping\Causelist_Project')
+sys.path.append(r'D:\Scrapping\Scrapping\Causelist_Project')
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime
@@ -22,7 +22,7 @@ today_date = datetime.today().strftime('%d-%m-%Y')
 print(today_date)
 
 chrome_options = Options()
-download_dir = r'E:\Scrapping\Andhra_Pradesh\PDF'
+download_dir = r'D:\Scrapping\Andhra_Pradesh\PDF'
 try:
     os.makedirs(download_dir)
 except:
@@ -76,7 +76,6 @@ def scrapper(url):
            pass
 
 url = "https://services.ecourts.gov.in/ecourtindiaHC/cases/highcourt_causelist.php?state_cd=2&dist_cd=1&court_code=1&stateNm=Andhra%20Pradesh"
-
 
 list1 = []
 list2 = []

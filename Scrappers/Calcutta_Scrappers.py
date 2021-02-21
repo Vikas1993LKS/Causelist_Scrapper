@@ -9,7 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import sys
-sys.path.append(r'E:\D_Drive\Scrapping\Causelist_Project')
+sys.path.append(r'D:\Scrapping\Scrapping\Causelist_Project')
 from datetime import datetime
 import time
 from selenium.webdriver.common.keys import Keys
@@ -21,7 +21,7 @@ def Scrapper(url):
     today_date = datetime.today().strftime('%d.%m.%Y')
     print(today_date)
     chrome_options = Options()
-    download_dir = r'E:\Scrapping\Calcutta\PDF' # + '\/'+  today_date 
+    download_dir = r'D:\Scrapping\Calcutta\PDF' # + '\/'+  today_date 
     try:
         os.makedirs(download_dir)
     except:

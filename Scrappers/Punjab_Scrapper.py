@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Jul  7 14:20:09 2020
-
 @author: Vikas Gupta
 """
 
@@ -12,7 +11,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import sys
-sys.path.append(r'E:\D_Drive\Scrapping\Causelist_Project')
+sys.path.append(r'D:\Scrapping\Scrapping\Causelist_Project')
 from datetime import datetime
 from Segmentation.Segmentation_code import parseFiles
 from Parsers.PDF_Parser_Punjab import parsepdf
@@ -23,11 +22,12 @@ today_date = datetime.today().strftime('%d-%m-%Y')
 print(today_date)
 
 chrome_options = Options()
-download_dir = r'E:\Scrapping\Punjab\PDF'
+download_dir = r'D:\Scrapping\Punjab\PDF'
 try:
     os.makedirs(download_dir)
 except:
     pass
+
 
 def scrapper(url):
     options = webdriver.ChromeOptions()
@@ -72,6 +72,7 @@ def scrapper(url):
     window_after = driver.window_handles[1]
     time.sleep(3)
     driver.switch_to.window(window_after)
+
 
 url = "https://highcourtchd.gov.in/clc.php"
 

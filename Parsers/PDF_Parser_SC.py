@@ -12,8 +12,12 @@ import pandas as pd
 import os
 import math
 import numpy as np
-from azure.cosmos import CosmosClient, PartitionKey, exceptions
+import sys
+from datetime import datetime
+sys.path.append(r'D:\Scrapping\Scrapping\Causelist_Project')
+# from azure.cosmos import CosmosClient, PartitionKey, exceptions
 from pymongo import MongoClient
+from Causelist_Metadata.Causelist_Metadata_Extraction import metadata_extractor
 
 regexp = re.compile(r'^([0-9])')
 listing_details = re.compile(r'(WITH CRIL REV. PETN.)|(Loan settlement matter)|(No Compliance Report)|(Eviction from Land matters)|(Finance & Tax matter)|(Land Records matter)|(Contract matters)|(Compensation matter)|(Supplying GI Pipes (PHED))|(Commerce & Industries)|(E-Tender (PHED))|(Settlement & Land Records)', re.IGNORECASE)
@@ -25,6 +29,7 @@ date_regex = re.compile(r'(((\d{1,2}(-|\/|\.)\d{1,2}(-|\/|\.)(19|20)?\d{2}))(\.)
 page_number_rejection = re.compile(r'^([0-9]{1,2})(\/)([0-9]{1,2})$|^([0-9]{1,3})$|(Advocate)$|(Petitioner(\s+)?\/(\s+)?Respondent)$')
 
 def parsepdf(data, download_dir):
+        today_date = datetime.today().strftime('%d-%m-%Y')
         Case_Num = []
         Case_Numbers = []
         Party = []
@@ -103,7 +108,7 @@ def parsepdf(data, download_dir):
                                        lambda x: (roundnumber(x['Line_Data']['leftpoint_x'])))
                 Count = 0
                 for ind in range(len(Batch)):
-                    if ("versus" in (Batch[ind]['Line_Data']['Value'].lower())):
+                    if ("versus" in (Batch[ind]['Line_Data']['Value'].lower()) or Batch[ind]['Line_Data']['Value'].lower().strip() == "vs."):
                         Party_Segreggator_leftpoint = Batch[ind]['Line_Data']['leftpoint_y']
                     Party_Segreggator_Page_Num = Batch[ind]['Line_Data']['page_number']
                     Page_Numbers.append(Batch[ind]['Line_Data']['page_number'])
@@ -205,6 +210,7 @@ def parsepdf(data, download_dir):
                     advocate_name = {"name": name}
                     advocate_names_respondent.append(advocate_name)
                 JSON_Data["respondent_advocate_names"] = advocate_names_respondent
+                JSON_Data["advocate_names"] = []
                 Cleaned_Additional_Details = " ".join(Additional_Detail)
                 if (additional_details(Cleaned_Additional_Details) != None):
                     cleaned_IA_Details = ", ".join(additional_details(Cleaned_Additional_Details))
@@ -220,19 +226,53 @@ def parsepdf(data, download_dir):
                         Fault_Files.append("For the case_number {}, the Advocate name is not captured".format(Case_Numb[0]))
                 else:
                     pass
+                Judge_Name = metadata_extractor(data)[0]
+                Court_Numbers = metadata_extractor(data)[1]
                 for Hearing in range(len(Hearing_Type)):
                     if (Hearing < len(Hearing_Type) -1):
                         if (Hearing_Type[Hearing+1]['Index'] > Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
                             Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())                                
                             JSON_Data["hearing_details"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()
-                            JSON_Data["state"] = "Supreme Court"
                         else:
                             Hearing+=1
                     else:
                         if (Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
                             Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())
                             JSON_Data["hearing_details"] = Hearing_Type[Hearing]['Line_Data']['Value'].strip()
-                            JSON_Data["state"] = "Supreme Court"
+                JSON_Data["remarks"] = ""
+                if (len(Judge_Name) != 0):
+                    for Judge in range(len(Judge_Name)):
+                        if (Judge < len(Judge_Name) -1):
+                            if (Judge_Name[Judge+1]['Index'] > Case_Numbers[values]['Index'] > Judge_Name[Judge]['Index']):
+                                judge_name_all = []
+                                for name in Judge_Name[Judge]['judge_name']:
+                                    judge_name = {"name": name.replace("\n", "")}
+                                    judge_name_all.append(judge_name)
+                                JSON_Data["judge_name"] = judge_name_all
+                            else:
+                                Judge+=1
+                        else:
+                            if (Case_Numbers[values]['Index'] > Judge_Name[Judge]['Index']):
+                                judge_name_all = []
+                                for name in Judge_Name[Judge]['judge_name']:
+                                    judge_name = {"name": name.replace("\n", "")}
+                                    judge_name_all.append(judge_name)
+                                JSON_Data["judge_name"] = judge_name_all
+                else:
+                    JSON_Data["judge_name"] = []
+                JSON_Data["tentative_date"] = ""
+                for Court in range(len(Court_Numbers)):
+                    if (Court < len(Court_Numbers) -1):
+                        if (Court_Numbers[Court+1]['Index'] > Case_Numbers[values]['Index'] > Court_Numbers[Court]['Index']):
+                            JSON_Data["court_number"] = Court_Numbers[Court]['court_number'].strip()
+                        else:
+                            Court+=1
+                    else:
+                        if (Case_Numbers[values]['Index'] > Court_Numbers[Court]['Index']):
+                            JSON_Data["court_number"] = Court_Numbers[Court]['court_number'].strip()
+                JSON_Data["forum"] = "Supreme Court"
+                JSON_Data["date"] =  today_date
+                JSON_Data["state"] = "Supreme Court"
                 Case_Num.append(Cleaned_Case_Numbers.replace("in,","in").replace("C.R.P.,","C.R.P.").replace("With, ","With ").replace("CRP,", "CRP "))
                 Party.append(Cleaned_Party.replace("\n",""))
                 Petitioner_Advocate.append(Cleaned_Petitioner_Adv)
@@ -241,80 +281,73 @@ def parsepdf(data, download_dir):
                 IA_Details.append(cleaned_IA_Details)
                 JSON_Complete_Data.append(JSON_Data)
                 Batches.append(Batch)
-            elif (values == len(Case_Numbers) - 1):
-                Index_Number = Case_Numbers[values]
-                for value in range(len(data)):
-                    if value >= Index_Number['Index'] and value <= (Index_Number['Index'] + 12):
-                        if data[value]['Line_Data']['leftpoint_x'] < 100 and (case_regex_2nd.search(data[value]['Line_Data']['Value']) or (case_regex.search(data[value]['Line_Data']['Value']))):
-                            Case_Numb.append(re.sub('([0-9]{1,3}\))', "",data[value]['Line_Data']['Value']).strip())
-                        elif (100 < data[value]['Line_Data']['leftpoint_x'] < 250 and not(date_regex.search(data[value]['Line_Data']['Value']))):
-                            Party_Name.append(data[value]['Line_Data']['Value'].strip())
-                        elif (data[value]['Line_Data']['leftpoint_y'] < Party_Segreggator_leftpoint and data[value]['Line_Data']['leftpoint_x'] > 400 and not(date_regex.search(data[value]['Line_Data']['Value']))):
-                            Respondent_Advocates.append(data[value]['Line_Data']['Value'].strip())
-                        elif (data[value]['Line_Data']['leftpoint_y'] > Party_Segreggator_leftpoint and data[value]['Line_Data']['leftpoint_x'] > 400 and not(date_regex.search(data[value]['Line_Data']['Value']))):
-                            Petitioner_Advocates.append(data[value]['Line_Data']['Value'].strip())
-                        else:
-                            pass
-                for Hearing in range(len(Hearing_Type)):
-                    if (Hearing < len(Hearing_Type) -1):
-                        if (Hearing_Type[Hearing+1]['Index'] > Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
-                            Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())                                
-                        else:
-                            Hearing+=1
-                    else:
-                        if (Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
-                            Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())
-                Cleaned_Case_Numbers = ", ".join(Case_Numb)
-                Cleaned_Party = " ".join(Party_Name)
-                Cleaned_Respondent_Adv = "".join(Respondent_Advocates)
-                Cleaned_Petitioner_Adv = "".join(Petitioner_Advocates)
-                Cleaned_Additional_Details = " ".join(Additional_Detail)
-                Case_Num.append(Cleaned_Case_Numbers.replace("in,","in").replace("C.R.P.,","C.R.P.").replace("With, ","With ").replace("CRP,", "CRP "))
-                Party.append(Cleaned_Party.replace("\n",""))
-                Petitioner_Advocate.append(Cleaned_Petitioner_Adv)
-                Respondent_Advocate.append(Cleaned_Respondent_Adv)
-                Additional_Details.append(Cleaned_Additional_Details)    
+            # elif (values == len(Case_Numbers) - 1):
+            #     Index_Number = Case_Numbers[values]
+            #     for value in range(len(data)):
+            #         if value >= Index_Number['Index'] and value <= (Index_Number['Index'] + 12):
+            #             if data[value]['Line_Data']['leftpoint_x'] < 100 and (case_regex_2nd.search(data[value]['Line_Data']['Value']) or (case_regex.search(data[value]['Line_Data']['Value']))):
+            #                 Case_Numb.append(re.sub('([0-9]{1,3}\))', "",data[value]['Line_Data']['Value']).strip())
+            #             elif (100 < data[value]['Line_Data']['leftpoint_x'] < 250 and not(date_regex.search(data[value]['Line_Data']['Value']))):
+            #                 Party_Name.append(data[value]['Line_Data']['Value'].strip())
+            #             elif (data[value]['Line_Data']['leftpoint_y'] < Party_Segreggator_leftpoint and data[value]['Line_Data']['leftpoint_x'] > 400 and not(date_regex.search(data[value]['Line_Data']['Value']))):
+            #                 Respondent_Advocates.append(data[value]['Line_Data']['Value'].strip())
+            #             elif (data[value]['Line_Data']['leftpoint_y'] > Party_Segreggator_leftpoint and data[value]['Line_Data']['leftpoint_x'] > 400 and not(date_regex.search(data[value]['Line_Data']['Value']))):
+            #                 Petitioner_Advocates.append(data[value]['Line_Data']['Value'].strip())
+            #             else:
+            #                 pass
+            #     for Hearing in range(len(Hearing_Type)):
+            #         if (Hearing < len(Hearing_Type) -1):
+            #             if (Hearing_Type[Hearing+1]['Index'] > Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
+            #                 Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())                                
+            #             else:
+            #                 Hearing+=1
+            #         else:
+            #             if (Case_Numbers[values]['Index'] > Hearing_Type[Hearing]['Index']):
+            #                 Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())
+            #     Cleaned_Case_Numbers = ", ".join(Case_Numb)
+            #     Cleaned_Party = " ".join(Party_Name)
+            #     Cleaned_Respondent_Adv = "".join(Respondent_Advocates)
+            #     Cleaned_Petitioner_Adv = "".join(Petitioner_Advocates)
+            #     Cleaned_Additional_Details = " ".join(Additional_Detail)
+            #     Case_Num.append(Cleaned_Case_Numbers.replace("in,","in").replace("C.R.P.,","C.R.P.").replace("With, ","With ").replace("CRP,", "CRP "))
+            #     Party.append(Cleaned_Party.replace("\n",""))
+            #     Petitioner_Advocate.append(Cleaned_Petitioner_Adv)
+            #     Respondent_Advocate.append(Cleaned_Respondent_Adv)
+            #     Additional_Details.append(Cleaned_Additional_Details)    
         #print (JSON_Complete_Data)
+        Counter = 0
+        for value in range(len(JSON_Complete_Data)):
+            if (value < len(JSON_Complete_Data)-1):
+                if (JSON_Complete_Data[value]["judge_name"] == JSON_Complete_Data[value+1]["judge_name"]):
+                    Counter += 1
+                    Serial_Number = "S.No. " + str(Counter)
+                    Court_Number = {"court_number" : JSON_Complete_Data[value]["court_number"] + " " + Serial_Number}
+                    #JSON_Data["court_number"] = JSON_Data["court_number"] + " " + Serial_Number
+                    JSON_Complete_Data[value].update(Court_Number)
+                    Serial_Number = ""
+                else:
+                    Counter += 1
+                    Serial_Number = "S.No. " + str(Counter)
+                    Court_Number = {"court_number" : JSON_Complete_Data[value]["court_number"] + " " + Serial_Number}
+                    #JSON_Data["court_number"] = JSON_Data["court_number"] + " " + Serial_Number
+                    JSON_Complete_Data[value].update(Court_Number)
+                    Serial_Number = ""
+                    Counter = 0
+        #print (JSON_Complete_Data)
+        for value in range(len(JSON_Complete_Data)):
+            if ("connected" in JSON_Complete_Data[value]["case_numbers"].lower()):
+                index = value
+                for i in range(index, -1, -1):
+                    if ("connected" not in JSON_Complete_Data[i]["case_numbers"].lower()):
+                        associated_case_number = JSON_Complete_Data[i]["case_numbers"]
+                        remarks = {"remarks": "in association with " + associated_case_number}
+                        JSON_Complete_Data[value].update(remarks)
+                        break
+        # with open("Output.txt", "w") as f:
+        #     f.write(str(JSON_Complete_Data))
         for value in JSON_Complete_Data:
             user_collection.insert_one(value)
-        
-        # for value in JSON_Complete_Data:
-        #     container_client.upsert_item(value)
-        # for Cases in range(len(Case_Numbers)):
-        #     for Hearing in range(len(Hearing_Type)):
-        #         if (Hearing < len(Hearing_Type) -1):
-        #             if (Hearing_Type[Hearing+1]['Index'] > Case_Numbers[Cases]['Index'] > Hearing_Type[Hearing]['Index']):
-        #                 Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())                                
-        #             else:
-        #                 Hearing+=1
-        #         else:
-        #             if (Case_Numbers[Cases]['Index'] > Hearing_Type[Hearing]['Index']):
-        #                 Hearing_Types.append(Hearing_Type[Hearing]['Line_Data']['Value'].strip())
-        # with open(Outputlocation + "/" + file_name + "_Batches.txt" ,"w") as f:
-        #     for value in Case_Numbers:
-        #         f.write(str(value))
-        # if (len(Fault_Files) != 0):
-        #     with open(Outputlocation + "/" + file_name + "_Error_logs.txt" ,"w") as f:
-        #        for value in Fault_Files:
-        #            f.write(str(value) + "\n")
-        # df = pd.DataFrame({"S.No.": np.arange(1, len(Case_Num) + 1)})
-        # df1 = pd.DataFrame({'Case Number':Case_Num})
-        # df2 = pd.DataFrame({'Party Names':Party})
-        # df3 = pd.DataFrame({'Petitioner Advocate Names': Petitioner_Advocate})
-        # df4 = pd.DataFrame({'Respondent Advocate Names': Respondent_Advocate})
-        # df5 = pd.DataFrame({'Listing Details':Hearing_Types})
-        # df6 = pd.DataFrame({'Additional Details':Additional_Details})
-        # df7 = pd.DataFrame({'IA Details':IA_Details})
-        # writer = pd.ExcelWriter(Outputlocation + "/" +file_name + ".xlsx")
-        # df.to_excel(writer, sheet_name='Sheet1',index=False,startcol=0)
-        # df1.to_excel(writer, sheet_name='Sheet1',index=False,startcol=1)                
-        # df2.to_excel(writer, sheet_name='Sheet1',index=False,startcol=2)
-        # df3.to_excel(writer, sheet_name='Sheet1',index=False,startcol=3)
-        # df4.to_excel(writer, sheet_name='Sheet1',index=False,startcol=4)
-        # df5.to_excel(writer, sheet_name='Sheet1',index=False,startcol=5)
-        # df6.to_excel(writer, sheet_name='Sheet1',index=False,startcol=6)
-        # df7.to_excel(writer, sheet_name='Sheet1',index=False,startcol=7)
-        # writer.save()
+            #container_client.upsert_item(value)
 
 def additional_details(Additional_Detail):
     links = []

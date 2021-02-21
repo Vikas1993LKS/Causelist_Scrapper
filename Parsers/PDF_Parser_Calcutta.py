@@ -9,8 +9,8 @@ import json
 import re
 import pandas as pd
 import os
-from azure.cosmos import CosmosClient, PartitionKey, exceptions
-
+#from azure.cosmos import CosmosClient, PartitionKey, exceptions
+from pymongo import MongoClient
 
 Case_Number_Beginning = re.compile(r'^(\d{1,3}\.)')
 
@@ -20,16 +20,27 @@ Whole_data = []
 
 Counters = []
 
+JSON_Complete_data = []
+
 def parsepdf(data, download_dir):
-        JSON_Complete_data = []
         Counter = 0
-        url = os.environ['ACCOUNT_URI']
-        key = os.environ['ACCOUNT_KEY']
-        client = CosmosClient(url, credential=key)            
-        database_name = "causelist"
-        container_name = "causelistcontainer"
-        database_client = client.get_database_client(database_name)
-        container_client = database_client.get_container_client(container_name)
+        # url = os.environ['ACCOUNT_URI']
+        # key = os.environ['ACCOUNT_KEY']
+        # client = CosmosClient(url, credential=key)            
+        # database_name = "causelist"
+        # container_name = "causelistcontainer"
+        # database_client = client.get_database_client(database_name)
+        # container_client = database_client.get_container_client(container_name)
+        db_name = "causelist"
+        host = os.getenv("MONGO_HOST")
+        port = 10255
+        username = os.getenv("MONGO_USERNAME")
+        password = os.getenv("MONGO_PASSWORD")
+        args = "ssl=true&retrywrites=false&ssl_cert_reqs=CERT_NONE&connect=false"
+        connection_uri = f"mongodb://{username}:{password}@{host}:{port}/{db_name}?{args}"
+        client = MongoClient(connection_uri)
+        db = client[db_name]
+        user_collection = db['user']
         for value in data:
                 Counter += 1
                 Case_data = {"Case_data": value['Line_Data']['Value'], 'index': Counter}

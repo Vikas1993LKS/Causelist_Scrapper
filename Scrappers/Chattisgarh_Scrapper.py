@@ -5,13 +5,11 @@ Created on Thu Jul  9 19:15:13 2020
 @author: Vikas Gupta
 """
 
-
-
 import os
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import sys
-sys.path.append(r'E:\D_Drive\Scrapping\Causelist_Project')
+sys.path.append(r'D:\Scrapping\Scrapping\Causelist_Project')
 from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime
 from Segmentation.Segmentation_code import parseFiles
@@ -21,8 +19,9 @@ from selenium.webdriver.common.keys import Keys
 
 
 today_date = datetime.today().strftime('%d.%m.%Y')
+today_date
 chrome_options = Options()
-download_dir = r'E:\Scrapping\Chattisgarh\PDF'
+download_dir = r'D:\Scrapping\Chattisgarh\PDF'
 try:
     os.makedirs(download_dir)
 except:
